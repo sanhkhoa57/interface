@@ -4,6 +4,7 @@ import requests
 import json
 import re
 import os
+import time
 from datetime import datetime
 from style_css import set_global_style
 from jikan_services import get_genre_map, get_character_data, get_one_character_data, get_random_manga_data
@@ -106,27 +107,35 @@ def get_ai_recommendations(age, interests, mood, style, content_type):
     from ai_service import wait_for_rate_limit
     import time
     
-    # Prompt ngắn gọn hơn
-    prompt = f"""Recommend 5 {content_type}s for:
-Age: {age}, Mood: {mood}, Style: {style}
-Interests: {interests}
-
-Return JSON only (no markdown):
-[{{"title":"...","reason":"...","genre":"...","search_keyword":"..."}}]"""
+    prompt = f"""
+    You are an expert Otaku and Librarian. 
+    User Profile:
+    - Age: {age}
+    - Mood: {mood}
+    - Interests/Hobbies: {interests}
+    - Preferred Style: {style}
     
-    max_retries = 3
-    base_wait = 15
+    Task: Recommend 5 best {content_type}s that perfectly match this profile.
+    
+    Return STRICTLY a JSON array with this format (no markdown, no extra text):
+    [
+      {{
+        "title": "Title of work",
+        "reason": "Why it fits the user (2 sentences max)",
+        "genre": "Main Genre",
+        "search_keyword": "Keyword to search this on database"
+      }}
+    ]
+    """
+    
+    max_retries = 2
     
     for attempt in range(max_retries):
         try:
             wait_for_rate_limit(min_interval=5)
             
-            # Dùng flash-lite
-            model = genai.GenerativeModel('gemini-2.0-flash-lite')
-            response = model.generate_content(
-                prompt,
-                generation_config={'max_output_tokens': 800}
-            )
+            model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            response = model.generate_content(prompt)
             text = response.text.strip()
             
             if text.startswith("```json"): 
@@ -139,21 +148,15 @@ Return JSON only (no markdown):
         except Exception as e:
             error_msg = str(e)
             
-            if any(keyword in error_msg.lower() for keyword in ["429", "quota", "rate limit"]):
-                if attempt < max_retries - 1:
-                    wait_time = base_wait * (2 ** attempt)
-                    st.warning(f"⏳ API busy. Retrying in {wait_time}s...")
-                    time.sleep(wait_time)
-                    continue
-                else:
-                    st.error("⚠️ Daily quota reached. Try again tomorrow or use fewer features.")
-                    return None
+            if attempt < max_retries - 1 and ("429" in error_msg or "quota" in error_msg.lower()):
+                st.warning(f"⏳ API busy. Retrying in 20s...")
+                time.sleep(20)
+                continue
             else:
                 st.error(f"AI Error: {e}")
                 return None
     
     return None
-
 # --- UI COMPONENTS ---
 def show_navbar():
     with st.container():
