@@ -208,30 +208,12 @@ def show_upgrade_dialog():
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        # Dùng st.link_button - đây là cách CHÍNH THỐNG của Streamlit
         st.link_button(
             "🚀 GO TO ADVANCED VERSION",
             "https://itookwusadvances.streamlit.app/",
             use_container_width=True,
             type="primary"
         )
-        
-        st.write("")
-        
-        # Backup link nếu button không hoạt động
-        st.markdown("""
-            <div style="text-align: center; margin-bottom: 15px;">
-                <a href="https://itookwusadvances.streamlit.app/" 
-                   target="_blank"
-                   style="color: #667eea; font-size: 14px; text-decoration: underline;">
-                   Or click here to open in new tab
-                </a>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        if st.button("Cancel", use_container_width=True, key="cancel_modal"):
-            st.session_state.show_upgrade_modal = False
-            st.rerun()
     
     # Tự động reset flag khi đóng dialog bằng X
     st.session_state.show_upgrade_modal = False
