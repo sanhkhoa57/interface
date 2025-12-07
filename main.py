@@ -229,15 +229,11 @@ def show_upgrade_dialog():
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        # Button để redirect sang trang khác (same tab)
-        if st.button("GO!! 🚀", use_container_width=True, type="primary", key="go_button_redirect"):
-            # Dùng JavaScript để redirect trong cùng tab
-            st.markdown("""
-                <script>
-                    window.parent.location.href = 'https://itookwusadvances.streamlit.app/';
-                </script>
-            """, unsafe_allow_html=True)
-            st.stop()
+        st.markdown("""
+            <a href="https://itookwusadvances.streamlit.app/" target="_self" style="text-decoration: none;">
+                <button class="go-button">GO!! 🚀</button>
+            </a>
+        """, unsafe_allow_html=True)
         
         st.write("")
         if st.button("Cancel", use_container_width=True, key="cancel_modal"):
