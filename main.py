@@ -230,7 +230,7 @@ def show_upgrade_dialog():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("""
-            <a href="https://itbooklibra.streamlit.app/" target="_self" style="text-decoration: none;">
+            <a href="https://itookwusadvances.streamlit.app/" target="_self" style="text-decoration: none;">
                 <button class="go-button">GO!! 🚀</button>
             </a>
         """, unsafe_allow_html=True)
