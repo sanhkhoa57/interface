@@ -3,14 +3,16 @@ from PIL import Image
 import time
 import streamlit as st
 
-# Rate limiting state
-if 'last_api_call' not in st.session_state:
-    st.session_state.last_api_call = 0
-if 'api_call_count' not in st.session_state:
-    st.session_state.api_call_count = 0
+# Rate limiting state - chỉ khởi tạo khi cần
+def init_rate_limit_state():
+    if 'last_api_call' not in st.session_state:
+        st.session_state.last_api_call = 0
+    if 'api_call_count' not in st.session_state:
+        st.session_state.api_call_count = 0
 
 def wait_for_rate_limit(min_interval=4):
     """Đảm bảo ít nhất min_interval giây giữa các API calls"""
+    init_rate_limit_state()
     elapsed = time.time() - st.session_state.last_api_call
     if elapsed < min_interval:
         wait_time = min_interval - elapsed
@@ -20,7 +22,7 @@ def wait_for_rate_limit(min_interval=4):
 
 def ai_vision_detect(image_data):
     image = Image.open(image_data)
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    model = genai.GenerativeModel('gemini-2.0-flash')  # Dùng flash thay vì flash-exp
     
     prompt = "Look at this anime character. Return ONLY the full name. If unsure, return 'Unknown'."
     
@@ -30,7 +32,7 @@ def ai_vision_detect(image_data):
     for attempt in range(max_retries):
         try:
             # Rate limiting
-            wait_for_rate_limit(min_interval=4)
+            wait_for_rate_limit(min_interval=3)
             
             response = model.generate_content([prompt, image])
             return response.text.strip()
@@ -55,7 +57,7 @@ def ai_vision_detect(image_data):
     return "Unknown"
 
 def generate_ai_stream(info):
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    model = genai.GenerativeModel('gemini-2.0-flash')  # Dùng flash thay vì flash-exp
     
     name = info.get('name', 'N/A')
     about = info.get('about', 'N/A')
@@ -81,7 +83,7 @@ def generate_ai_stream(info):
     for attempt in range(max_retries):
         try:
             # Rate limiting
-            wait_for_rate_limit(min_interval=4)
+            wait_for_rate_limit(min_interval=3)
             
             response = model.generate_content(prompt, stream=True)
             return response
