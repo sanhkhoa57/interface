@@ -103,55 +103,50 @@ def toggle_favorite(data, category='media'):
         st.toast(f"❤️ Added '{title_name}' to Favorites", icon="✅")
 
 def get_ai_recommendations(age, interests, mood, style, content_type):
-    from ai_service import wait_for_rate_limit  # Import function
+    from ai_service import wait_for_rate_limit
+    import time
     
-    prompt = f"""
-    You are an expert Otaku and Librarian. 
-    User Profile:
-    - Age: {age}
-    - Mood: {mood}
-    - Interests/Hobbies: {interests}
-    - Preferred Style: {style}
-    
-    Task: Recommend 5 best {content_type}s that perfectly match this profile.
-    
-    Return STRICTLY a JSON array with this format (no markdown, no extra text):
-    [
-      {{
-        "title": "Title of work",
-        "reason": "Why it fits the user (2 sentences max)",
-        "genre": "Main Genre",
-        "search_keyword": "Keyword to search this on database"
-      }}
-    ]
-    """
+    # Prompt ngắn gọn hơn
+    prompt = f"""Recommend 5 {content_type}s for:
+Age: {age}, Mood: {mood}, Style: {style}
+Interests: {interests}
+
+Return JSON only (no markdown):
+[{{"title":"...","reason":"...","genre":"...","search_keyword":"..."}}]"""
     
     max_retries = 3
-    base_wait = 5
+    base_wait = 15
     
     for attempt in range(max_retries):
         try:
-            # Rate limiting
-            wait_for_rate_limit(min_interval=3)
+            wait_for_rate_limit(min_interval=5)
             
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(prompt)
+            # Dùng flash-lite
+            model = genai.GenerativeModel('gemini-2.0-flash-lite')
+            response = model.generate_content(
+                prompt,
+                generation_config={'max_output_tokens': 800}
+            )
             text = response.text.strip()
-            if text.startswith("```json"): text = text[7:-3]
-            elif text.startswith("```"): text = text[3:-3]
+            
+            if text.startswith("```json"): 
+                text = text[7:-3]
+            elif text.startswith("```"): 
+                text = text[3:-3]
+            
             return json.loads(text)
             
         except Exception as e:
             error_msg = str(e)
             
-            if "429" in error_msg or "quota" in error_msg.lower():
+            if any(keyword in error_msg.lower() for keyword in ["429", "quota", "rate limit"]):
                 if attempt < max_retries - 1:
                     wait_time = base_wait * (2 ** attempt)
                     st.warning(f"⏳ API busy. Retrying in {wait_time}s...")
                     time.sleep(wait_time)
                     continue
                 else:
-                    st.error("⚠️ API quota exceeded. Please try again in 1 minute.")
+                    st.error("⚠️ Daily quota reached. Try again tomorrow or use fewer features.")
                     return None
             else:
                 st.error(f"AI Error: {e}")
