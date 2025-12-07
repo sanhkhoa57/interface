@@ -194,27 +194,6 @@ def show_upgrade_dialog():
             color: #667eea;
             font-size: 17px;
         }
-        
-        .go-button {
-            background: linear-gradient(135deg, #a8b5ff 0%, #c4a3e0 100%);
-            color: white;
-            padding: 14px 40px;
-            border: none;
-            border-radius: 25px;
-            font-size: 18px;
-            font-weight: 500;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.25);
-            transition: all 0.3s ease;
-            width: 100%;
-            letter-spacing: 0.5px;
-        }
-        
-        .go-button:hover {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.35);
-        }
         </style>
         
         <div class="upgrade-content">
@@ -229,17 +208,31 @@ def show_upgrade_dialog():
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("""
-            <a href="https://itookwusadvances.streamlit.app/" target="_self" style="text-decoration: none;">
-                <button class="go-button">GO!! 🚀</button>
-            </a>
-        """, unsafe_allow_html=True)
+        # Dùng st.link_button - đây là cách CHÍNH THỐNG của Streamlit
+        st.link_button(
+            "🚀 GO TO ADVANCED VERSION",
+            "https://itookwusadvances.streamlit.app/",
+            use_container_width=True,
+            type="primary"
+        )
         
         st.write("")
+        
+        # Backup link nếu button không hoạt động
+        st.markdown("""
+            <div style="text-align: center; margin-bottom: 15px;">
+                <a href="https://itookwusadvances.streamlit.app/" 
+                   target="_blank"
+                   style="color: #667eea; font-size: 14px; text-decoration: underline;">
+                   Or click here to open in new tab
+                </a>
+            </div>
+        """, unsafe_allow_html=True)
+        
         if st.button("Cancel", use_container_width=True, key="cancel_modal"):
             st.session_state.show_upgrade_modal = False
             st.rerun()
-        
+    
     # Tự động reset flag khi đóng dialog bằng X
     st.session_state.show_upgrade_modal = False
 
