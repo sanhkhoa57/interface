@@ -4,7 +4,7 @@ from PIL import Image
 
 def ai_vision_detect(image_data):
     image = Image.open(image_data)
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    model = genai.GenerativeModel('gemini-2.0-flash-lite')
     
     # Vision Prompt
     prompt = "Look at this anime character. Return ONLY the full name. If unsure, return 'Unknown'."
@@ -17,7 +17,7 @@ def ai_vision_detect(image_data):
         return "Unknown"
 
 def generate_ai_stream(info):
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    model = genai.GenerativeModel('gemini-2.0-flash-lite')
     
     name = info.get('name', 'N/A')
     about = info.get('about', 'N/A')
