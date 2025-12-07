@@ -103,6 +103,8 @@ def toggle_favorite(data, category='media'):
         st.toast(f"❤️ Added '{title_name}' to Favorites", icon="✅")
 
 def get_ai_recommendations(age, interests, mood, style, content_type):
+    from ai_service import wait_for_rate_limit  # Import function
+    
     prompt = f"""
     You are an expert Otaku and Librarian. 
     User Profile:
@@ -123,19 +125,41 @@ def get_ai_recommendations(age, interests, mood, style, content_type):
       }}
     ]
     """
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        if text.startswith("```json"): text = text[7:-3]
-        elif text.startswith("```"): text = text[3:-3]
-        return json.loads(text)
-    except Exception as e:
-        st.error(f"AI Error: {e}")
-        return None
+    
+    max_retries = 3
+    base_wait = 5
+    
+    for attempt in range(max_retries):
+        try:
+            # Rate limiting
+            wait_for_rate_limit(min_interval=3)
+            
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(prompt)
+            text = response.text.strip()
+            if text.startswith("```json"): text = text[7:-3]
+            elif text.startswith("```"): text = text[3:-3]
+            return json.loads(text)
+            
+        except Exception as e:
+            error_msg = str(e)
+            
+            if "429" in error_msg or "quota" in error_msg.lower():
+                if attempt < max_retries - 1:
+                    wait_time = base_wait * (2 ** attempt)
+                    st.warning(f"⏳ API busy. Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    st.error("⚠️ API quota exceeded. Please try again in 1 minute.")
+                    return None
+            else:
+                st.error(f"AI Error: {e}")
+                return None
+    
+    return None
 
 # --- UI COMPONENTS ---
-
 def show_navbar():
     with st.container():
         col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1], gap="small", vertical_alignment="center")
@@ -159,6 +183,10 @@ def show_navbar():
         
         with col5:
             if st.button("CONTACT", use_container_width=True): navigate_to('contact')
+    
+    # Usage monitor
+    if 'api_call_count' in st.session_state and st.session_state.api_call_count > 0:
+        st.caption(f"🔄 API Calls: {st.session_state.api_call_count}")
     
     st.write("")
 
