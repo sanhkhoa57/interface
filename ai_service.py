@@ -5,161 +5,92 @@ import time
 # Global rate limiter
 _last_api_call = 0
 _api_call_count = 0
-_daily_reset_time = time.time()
-
-def reset_daily_counter():
-    """Reset counter nếu đã qua ngày mới"""
-    global _api_call_count, _daily_reset_time
-    current_time = time.time()
-    # Reset sau 24 giờ
-    if current_time - _daily_reset_time > 86400:
-        _api_call_count = 0
-        _daily_reset_time = current_time
-        print("🔄 Daily API counter reset")
 
 def wait_for_rate_limit(min_interval=5):
-    """
-    Đảm bảo ít nhất min_interval giây giữa các API calls
-    Gemini 2.0 Flash Free: 15 RPM = 4s/request minimum
-    """
+    """Đảm bảo ít nhất min_interval giây giữa các API calls"""
     global _last_api_call, _api_call_count
-    
-    reset_daily_counter()
     
     elapsed = time.time() - _last_api_call
     if elapsed < min_interval:
         wait_time = min_interval - elapsed
-        print(f"⏳ Rate limiting: waiting {wait_time:.1f}s...")
         time.sleep(wait_time)
     
     _last_api_call = time.time()
     _api_call_count += 1
-    print(f"✅ API Call #{_api_call_count} at {time.strftime('%H:%M:%S')}")
 
 def ai_vision_detect(image_data):
     """Detect anime character from image using Gemini Vision"""
-    
-    # Resize image để giảm token usage
     image = Image.open(image_data)
-    # Resize nếu quá lớn (max 1024x1024 để tiết kiệm tokens)
-    max_size = 1024
+    
+    # Resize để tiết kiệm quota
+    max_size = 800
     if image.width > max_size or image.height > max_size:
         image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-        print(f"📐 Image resized to {image.size}")
     
-    # Dùng flash-lite cho vision (rẻ hơn, quota cao hơn)
-    model = genai.GenerativeModel('gemini-2.0-flash-lite')
+    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    prompt = "Look at this anime character. Return ONLY the full name. If unsure, return 'Unknown'."
     
-    # Prompt ngắn gọn để tiết kiệm tokens
-    prompt = "Anime character name only. Return 'Unknown' if unsure."
-    
-    max_retries = 3
-    base_wait = 15  # Tăng lên 15s vì vision tốn nhiều quota hơn
+    max_retries = 2
     
     for attempt in range(max_retries):
         try:
-            # Apply rate limiting - 6s cho vision
             wait_for_rate_limit(min_interval=6)
-            
-            print(f"🔍 Vision attempt {attempt + 1}/{max_retries}")
-            response = model.generate_content(
-                [prompt, image],
-                generation_config={'max_output_tokens': 50}  # Giới hạn output
-            )
-            result = response.text.strip()
-            print(f"✅ Vision result: {result}")
-            return result
-            
+            response = model.generate_content([prompt, image])
+            return response.text.strip()
         except Exception as e:
             error_msg = str(e)
-            print(f"❌ Vision error (attempt {attempt + 1}): {error_msg}")
-            
-            # Check for rate limit or quota errors
-            if any(keyword in error_msg.lower() for keyword in ["429", "quota", "rate limit", "resource exhausted"]):
-                if attempt < max_retries - 1:
-                    wait_time = base_wait * (2 ** attempt)  # 15s, 30s, 60s
-                    print(f"⏳ Quota exceeded! Waiting {wait_time}s before retry...")
-                    time.sleep(wait_time)
-                    continue
-                else:
-                    print("❌ Max retries reached for vision")
-                    return "⚠️ API quota exceeded. Please wait 1 minute and try again."
-            else:
-                print(f"❌ Non-quota error: {error_msg}")
-                return "Unknown"
+            if attempt < max_retries - 1 and ("429" in error_msg or "quota" in error_msg.lower()):
+                time.sleep(20)
+                continue
+            print(f"Vision Error: {e}")
+            return "Unknown"
     
     return "Unknown"
 
 def generate_ai_stream(info):
     """Generate character analysis using Gemini"""
-    
-    # Dùng flash-lite thay vì flash-exp (quota cao hơn)
-    model = genai.GenerativeModel('gemini-2.0-flash-lite')
+    model = genai.GenerativeModel('gemini-2.0-flash-exp')
     
     name = info.get('name', 'N/A')
     about = info.get('about', 'N/A')
     
-    # Giảm context length để tiết kiệm tokens
-    if about and len(about) > 1000: 
-        about = about[:1000] + "..."
+    if about and len(about) > 1500: 
+        about = about[:1500] + "..."
 
-    # Prompt ngắn gọn hơn
-    prompt = f"""Character: {name}
-Info: {about}
+    prompt = f"""
+    Based on the following info: "{about}".
+    Act as a professional Otaku. Write a character analysis profile for {name} in ENGLISH following these 4 sections strictly:
 
-Write 4 short sections:
-1. Bio (2-3 sentences)
-2. Anime appearance (1-2 sentences) 
-3. Abilities (2-3 sentences)
-4. Fan rating (1-2 sentences)
+    1. **Short Bio**: Retell their past or background in an engaging way.
+    2. **Appeared In**: Introduce the original Anime and their specific role in it.
+    3. **Powers & Abilities**: Analyze their strengths, special moves, or intellectual capabilities.
+    4. **Personal Rating**: Explain why this character is loved (or hated) by the community.
 
-Keep it fun with emojis 🌟🔥"""
+    Keep the tone enthusiastic and fun! Use emojis 🌟🔥.
+    """
 
-    max_retries = 3
-    base_wait = 15
+    max_retries = 2
     
     for attempt in range(max_retries):
         try:
-            # Apply rate limiting - 5s cho text generation
             wait_for_rate_limit(min_interval=5)
-            
-            print(f"📝 Stream attempt {attempt + 1}/{max_retries} for {name}")
-            response = model.generate_content(
-                prompt, 
-                stream=True,
-                generation_config={'max_output_tokens': 500}  # Giới hạn output
-            )
-            print(f"✅ Stream started successfully for {name}")
+            response = model.generate_content(prompt, stream=True)
             return response
-            
         except Exception as e:
             error_msg = str(e)
-            print(f"❌ Stream error (attempt {attempt + 1}): {error_msg}")
+            if attempt < max_retries - 1 and ("429" in error_msg or "quota" in error_msg.lower()):
+                time.sleep(20)
+                continue
             
-            if any(keyword in error_msg.lower() for keyword in ["429", "quota", "rate limit", "resource exhausted"]):
-                if attempt < max_retries - 1:
-                    wait_time = base_wait * (2 ** attempt)  # 15s, 30s, 60s
-                    print(f"⏳ Quota exceeded! Waiting {wait_time}s before retry...")
-                    time.sleep(wait_time)
-                    continue
-                else:
-                    print("❌ Max retries reached for stream")
-                    class ErrorChunk:
-                        def __init__(self, text): 
-                            self.text = text
-                    return [ErrorChunk("⚠️ Daily quota exceeded. Please try again tomorrow or upgrade to paid plan.")]
-            else:
-                print(f"❌ Non-quota error: {error_msg}")
-                class ErrorChunk:
-                    def __init__(self, text): 
-                        self.text = text
-                return [ErrorChunk(f"AI Error: {str(e)}")]
+            class ErrorChunk:
+                def __init__(self, text): 
+                    self.text = text
+            return [ErrorChunk(f"AI Error: {str(e)}")]
     
-    # Fallback
     class ErrorChunk:
         def __init__(self, text): 
             self.text = text
-    return [ErrorChunk("⚠️ Service temporarily unavailable. Please try again in a few minutes.")]
+    return [ErrorChunk("Service temporarily unavailable")]
 
 def get_api_stats():
     """Get current API usage statistics"""
