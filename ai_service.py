@@ -27,7 +27,7 @@ def ai_vision_detect(image_data):
     if image.width > max_size or image.height > max_size:
         image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
     
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     prompt = "Look at this anime character. Return ONLY the full name. If unsure, return 'Unknown'."
     
     max_retries = 2
@@ -49,7 +49,7 @@ def ai_vision_detect(image_data):
 
 def generate_ai_stream(info):
     """Generate character analysis using Gemini"""
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     name = info.get('name', 'N/A')
     about = info.get('about', 'N/A')
