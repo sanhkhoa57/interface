@@ -166,7 +166,7 @@ def show_homepage():
     st.markdown("""
         <div style="text-align: center; margin-bottom: 40px;">
             <h1 style="font-family: 'Pacifico', cursive; font-size: 80px; color: #FF6600; text-shadow: 3px 3px 6px black;">Welcome to ITOOK</h1>
-            <p style="font-size: 24px; font-style: italic;">Find your Waifu, Discover new Worlds.</p>
+            <p style="font-size: 24px; font-style: italic;">What adventure awaits you?</p>
         </div>
     """, unsafe_allow_html=True)
     
